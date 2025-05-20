@@ -2,132 +2,96 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <title>Editor de Muebles Avanzado</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Diseño de Muebles</title>
   <style>
-    body { font-family: Arial; margin: 0; background: #f0f0f0; text-align: center; }
-    #tools { padding: 10px; background: #fff; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-    button, input[type="file"] {
-      margin: 5px; padding: 8px 12px; font-size: 14px;
-    }
-    canvas { border: 2px solid #333; margin-top: 10px; cursor: crosshair; }
+    body { font-family: Arial, sans-serif; margin: 0; padding: 0; text-align: center; }
+    canvas { border: 1px solid #ccc; cursor: crosshair; }
+    #tools { margin: 10px; }
+    button, input[type="color"] { margin: 5px; padding: 5px 10px; }
+    input[type="file"] { margin: 10px; }
   </style>
 </head>
 <body>
-  <h2>Editor de Diseño de Muebles</h2>
+  <h2>Herramienta para diseñar muebles sobre una foto</h2>
   <div id="tools">
-    <input type="file" id="imgLoader" accept="image/*" />
-    <button onclick="setTool('line')">Línea</button>
-    <button onclick="setTool('rect')">Rectángulo</button>
-    <button onclick="setTool('text')">Texto</button>
-    <button onclick="setTool('move')">Mover</button>
-    <button onclick="setTool('erase')">Borrar</button>
-    <button onclick="download()">Descargar</button>
+    <input type="file" id="imageLoader" accept="image/*" />
+    <button onclick="currentTool = 'line'">Dibujar Línea</button>
+    <button onclick="currentTool = 'text'">Agregar Texto</button>
+    <input type="color" id="colorPicker" value="#000000" />
+    <button onclick="clearCanvas()">Borrar Todo</button>
+    <button onclick="downloadImage()">Descargar Diseño</button>
   </div>
   <canvas id="canvas" width="1000" height="600"></canvas>
 
   <script>
     const canvas = document.getElementById("canvas");
     const ctx = canvas.getContext("2d");
-    let tool = "line";
+    const imageLoader = document.getElementById("imageLoader");
+    const colorPicker = document.getElementById("colorPicker");
+
+    let img = new Image();
     let drawing = false;
     let startX, startY;
-    let image = new Image();
-    let elements = [];
-    let selected = null;
+    let currentTool = 'line';
 
-    document.getElementById("imgLoader").addEventListener("change", e => {
+    imageLoader.addEventListener("change", function (e) {
       const reader = new FileReader();
-      reader.onload = function(evt) {
-        image.onload = () => {
+      reader.onload = function (event) {
+        img.onload = function () {
           ctx.clearRect(0, 0, canvas.width, canvas.height);
-          ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
-          redraw();
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
         };
-        image.src = evt.target.result;
+        img.src = event.target.result;
       };
       reader.readAsDataURL(e.target.files[0]);
     });
 
-    function setTool(t) {
-      tool = t;
-      selected = null;
-    }
+    canvas.addEventListener("mousedown", function (e) {
+      const rect = canvas.getBoundingClientRect();
+      startX = e.clientX - rect.left;
+      startY = e.clientY - rect.top;
 
-    canvas.addEventListener("mousedown", e => {
-      startX = e.offsetX;
-      startY = e.offsetY;
-      if (tool === "move") {
-        selected = elements.find(el => inside(startX, startY, el));
-      } else {
+      if (currentTool === 'text') {
+        const text = prompt("Escribí el texto:");
+        if (text) {
+          ctx.fillStyle = colorPicker.value;
+          ctx.font = "16px Arial";
+          ctx.fillText(text, startX, startY);
+        }
+      } else if (currentTool === 'line') {
         drawing = true;
       }
     });
 
-    canvas.addEventListener("mouseup", e => {
-      if (!drawing) return;
-      drawing = false;
-      const endX = e.offsetX;
-      const endY = e.offsetY;
-      const newEl = { type: tool, x1: startX, y1: startY, x2: endX, y2: endY, text: "" };
+    canvas.addEventListener("mouseup", function (e) {
+      if (currentTool === 'line' && drawing) {
+        const rect = canvas.getBoundingClientRect();
+        const endX = e.clientX - rect.left;
+        const endY = e.clientY - rect.top;
 
-      if (tool === "line" || tool === "rect") {
-        elements.push(newEl);
-      } else if (tool === "text") {
-        const txt = prompt("Texto:");
-        if (txt) {
-          newEl.text = txt;
-          newEl.type = "text";
-          elements.push(newEl);
-        }
-      } else if (tool === "erase") {
-        elements = elements.filter(el => !inside(endX, endY, el));
-      }
-      redraw();
-    });
-
-    canvas.addEventListener("mousemove", e => {
-      if (tool === "move" && selected) {
-        const dx = e.offsetX - startX;
-        const dy = e.offsetY - startY;
-        selected.x1 += dx; selected.y1 += dy;
-        selected.x2 += dx; selected.y2 += dy;
-        startX = e.offsetX;
-        startY = e.offsetY;
-        redraw();
-      }
-    });
-
-    function inside(x, y, el) {
-      return x > Math.min(el.x1, el.x2) && x < Math.max(el.x1, el.x2)
-          && y > Math.min(el.y1, el.y2) && y < Math.max(el.y1, el.y2);
-    }
-
-    function redraw() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      if (image.src) ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
-      elements.forEach(el => {
+        ctx.strokeStyle = colorPicker.value;
         ctx.lineWidth = 2;
-        if (el.type === "line") {
-          ctx.strokeStyle = "red";
-          ctx.beginPath();
-          ctx.moveTo(el.x1, el.y1);
-          ctx.lineTo(el.x2, el.y2);
-          ctx.stroke();
-        } else if (el.type === "rect") {
-          ctx.strokeStyle = "blue";
-          ctx.strokeRect(el.x1, el.y1, el.x2 - el.x1, el.y2 - el.y1);
-        } else if (el.type === "text") {
-          ctx.fillStyle = "green";
-          ctx.font = "16px Arial";
-          ctx.fillText(el.text, el.x1, el.y1);
-        }
-      });
+        ctx.beginPath();
+        ctx.moveTo(startX, startY);
+        ctx.lineTo(endX, endY);
+        ctx.stroke();
+
+        drawing = false;
+      }
+    });
+
+    function clearCanvas() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      if (img.src) {
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      }
     }
 
-    function download() {
+    function downloadImage() {
       const link = document.createElement("a");
-      link.download = "plano_mueble.png";
-      link.href = canvas.toDataURL("image/png");
+      link.download = "dibujo-mueble.png";
+      link.href = canvas.toDataURL();
       link.click();
     }
   </script>
