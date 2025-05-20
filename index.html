@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Editor de Muebles en Foto</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f5f5f5;
+      margin: 0;
+      padding: 0;
+      text-align: center;
+    }
+    h2 {
+      margin-top: 20px;
+    }
+    #controls {
+      margin: 15px 0;
+    }
+    input[type="file"], button {
+      margin: 5px;
+      padding: 8px 14px;
+      font-size: 16px;
+    }
+    #canvas-container {
+      display: inline-block;
+      position: relative;
+    }
+    canvas {
+      border: 2px solid #333;
+      background-color: #fff;
+      cursor: crosshair;
+    }
+  </style>
+</head>
+<body>
+
+  <h2>Diseña tus muebles sobre una imagen</h2>
+
+  <div id="controls">
+    <input type="file" id="imgLoader" accept="image/*" />
+    <button onclick="setTool('line')">Línea</button>
+    <button onclick="setTool('rect')">Rectángulo</button>
+    <button onclick="setTool('erase')">Borrar</button>
+    <button onclick="download()">Descargar diseño</button>
+  </div>
+
+  <div id="canvas-container">
+    <canvas id="canvas" width="900" height="600"></canvas>
+  </div>
+
+  <script>
+    const canvas = document.getElementById("canvas");
+    const ctx = canvas.getContext("2d");
+    let image = new Image();
+    let drawing = false;
+    let startX, startY;
+    let tool = "line";
+
+    function setTool(t) {
+      tool = t;
+    }
+
+    document.getElementById("imgLoader").addEventListener("change", function(e) {
+      const reader = new FileReader();
+      reader.onload = function(event) {
+        image.onload = function() {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+        };
+        image.src = event.target.result;
+      };
+      reader.readAsDataURL(e.target.files[0]);
+    });
+
+    canvas.addEventListener("mousedown", function(e) {
+      drawing = true;
+      startX = e.offsetX;
+      startY = e.offsetY;
+    });
+
+    canvas.addEventListener("mouseup", function(e) {
+      if (!drawing) return;
+      drawing = false;
+      const endX = e.offsetX;
+      const endY = e.offsetY;
+      ctx.lineWidth = 2;
+
+      if (tool === "line") {
+        ctx.beginPath();
+        ctx.strokeStyle = "red";
+        ctx.moveTo(startX, startY);
+        ctx.lineTo(endX, endY);
+        ctx.stroke();
+      } else if (tool === "rect") {
+        ctx.beginPath();
+        ctx.strokeStyle = "blue";
+        ctx.rect(startX, startY, endX - startX, endY - startY);
+        ctx.stroke();
+      } else if (tool === "erase") {
+        ctx.clearRect(startX, startY, endX - startX, endY - startY);
+      }
+    });
+
+    function download() {
+      const link = document.createElement("a");
+      link.download = "diseno_mueble.png";
+      link.href = canvas.toDataURL("image/png");
+      link.click();
+    }
+  </script>
+
+</body>
+</html>
