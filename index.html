@@ -1,176 +1,64 @@
-<!-- App para diseñar muebles con elementos movibles -->
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <title>Diseña tu Mueble</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 0;
-      padding: 0;
-      background: #f0f0f0;
-      text-align: center;
-    }
-    #toolbar {
-      padding: 10px;
-      background: #fff;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-      position: sticky;
-      top: 0;
-      z-index: 10;
-    }
-    canvas {
-      border: 1px solid #ccc;
-      margin-top: 10px;
-      max-width: 100%;
-      cursor: crosshair;
-    }
-    button {
-      margin: 5px;
-      padding: 8px 12px;
-      border: none;
-      background: #3498db;
-      color: #fff;
-      cursor: pointer;
-      border-radius: 4px;
-    }
-    button:hover {
-      background: #2980b9;
-    }
-  </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Banner Servidores</title>
+<style>
+  body {
+    margin: 0;
+    background: #0a1435; /* azul oscuro */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    font-family: 'Impact', sans-serif;
+  }
+  .banner {
+    background: #0a1435;
+    border: 4px solid #00ff00;
+    padding: 30px 50px;
+    text-align: center;
+    color: #00ff00;
+    text-shadow:
+      0 0 5px #00ff00,
+      0 0 10px #00ff00,
+      0 0 20px #00ff00,
+      0 0 40px #00ff00;
+    max-width: 700px;
+    border-radius: 15px;
+  }
+  .banner h1 {
+    font-size: 3rem;
+    margin-bottom: 10px;
+    color: #ffff00;
+    text-shadow:
+      0 0 10px #ffff00,
+      0 0 20px #ffff00,
+      0 0 30px #ffea00;
+  }
+  .banner h2 {
+    font-size: 2rem;
+    margin: 10px 0;
+    color: #ff0000;
+    text-shadow:
+      0 0 5px #ff0000,
+      0 0 15px #ff0000;
+  }
+  .banner p {
+    font-size: 1.5rem;
+    margin: 10px 0;
+    color: #00ff00;
+  }
+</style>
 </head>
 <body>
-
-  <div id="toolbar">
-    <input type="file" id="imageUpload" accept="image/*">
-    <button onclick="setTool('line')">Línea</button>
-    <button onclick="setTool('text')">Texto</button>
-    <button onclick="setTool('move')">Mover</button>
-    <button onclick="setTool('erase')">Borrar</button>
-    <button onclick="downloadImage()">Guardar diseño</button>
+  <div class="banner">
+    <h1>¡SERVIDORES PREMIUM 100% ESTABLES!</h1>
+    <h2>CLARO - MOVISTAR - PERSONAL</h2>
+    <p>LA MEJOR CONEXIÓN AL MEJOR PRECIO</p>
+    <p>¡CONEXIÓN ININTERRUMPIDA Y RÁPIDA!</p>
+    <p>¡SOPORTE 24/7 Y ACTIVACIÓN INMEDIATA!</p>
   </div>
-
-  <canvas id="canvas" width="900" height="600"></canvas>
-
-  <script>
-    const canvas = document.getElementById('canvas');
-    const ctx = canvas.getContext('2d');
-    let tool = 'line';
-    let elements = [];
-    let dragging = null;
-    let offsetX = 0, offsetY = 0;
-    let img = new Image();
-
-    function setTool(t) {
-      tool = t;
-    }
-
-    document.getElementById('imageUpload').addEventListener('change', function(e) {
-      const file = e.target.files[0];
-      if (file) {
-        const reader = new FileReader();
-        reader.onload = function(event) {
-          img.onload = function() {
-            drawAll();
-          }
-          img.src = event.target.result;
-        }
-        reader.readAsDataURL(file);
-      }
-    });
-
-    function drawAll() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      if (img.src) ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-      for (let el of elements) {
-        if (el.type === 'line') {
-          ctx.strokeStyle = 'blue';
-          ctx.lineWidth = 2;
-          ctx.beginPath();
-          ctx.moveTo(el.x1, el.y1);
-          ctx.lineTo(el.x2, el.y2);
-          ctx.stroke();
-        } else if (el.type === 'text') {
-          ctx.font = '16px Arial';
-          ctx.fillStyle = 'red';
-          ctx.fillText(el.text, el.x, el.y);
-        }
-      }
-    }
-
-    canvas.addEventListener('mousedown', (e) => {
-      const x = e.offsetX, y = e.offsetY;
-
-      if (tool === 'text') {
-        const text = prompt("Texto:");
-        if (text) {
-          elements.push({ type: 'text', text, x, y });
-          drawAll();
-        }
-      } else if (tool === 'line') {
-        elements.push({ type: 'line', x1: x, y1: y, x2: x, y2: y });
-        dragging = elements[elements.length - 1];
-      } else if (tool === 'move') {
-        for (let el of elements.slice().reverse()) {
-          if (el.type === 'text' && ctx.measureText(el.text).width > 0) {
-            const width = ctx.measureText(el.text).width;
-            const height = 16;
-            if (x >= el.x && x <= el.x + width && y >= el.y - height && y <= el.y) {
-              dragging = el;
-              offsetX = x - el.x;
-              offsetY = y - el.y;
-              break;
-            }
-          } else if (el.type === 'line') {
-            const dist = Math.hypot(x - el.x1, y - el.y1);
-            if (dist < 10) {
-              dragging = el;
-              offsetX = x - el.x1;
-              offsetY = y - el.y1;
-              break;
-            }
-          }
-        }
-      }
-    });
-
-    canvas.addEventListener('mousemove', (e) => {
-      if (!dragging) return;
-      const x = e.offsetX, y = e.offsetY;
-      if (tool === 'line' && dragging.type === 'line') {
-        dragging.x2 = x;
-        dragging.y2 = y;
-        drawAll();
-      } else if (tool === 'move') {
-        if (dragging.type === 'text') {
-          dragging.x = x - offsetX;
-          dragging.y = y - offsetY;
-        } else if (dragging.type === 'line') {
-          const dx = x - offsetX - dragging.x1;
-          const dy = y - offsetY - dragging.y1;
-          dragging.x1 += dx;
-          dragging.y1 += dy;
-          dragging.x2 += dx;
-          dragging.y2 += dy;
-          offsetX = x - dragging.x1;
-          offsetY = y - dragging.y1;
-        }
-        drawAll();
-      }
-    });
-
-    canvas.addEventListener('mouseup', () => {
-      dragging = null;
-    });
-
-    function downloadImage() {
-      const link = document.createElement('a');
-      link.download = 'diseño-mueble.png';
-      link.href = canvas.toDataURL();
-      link.click();
-    }
-  </script>
-
 </body>
 </html>
