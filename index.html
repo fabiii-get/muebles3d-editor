@@ -1,66 +1,53 @@
-<!DOCTYPE html>
-<html lang="es">
+<!DOCTYPE html><html lang="es">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>FlovTV</title>
-  <link href="https://cdn.jsdelivr.net/npm/@mdi/font/css/materialdesignicons.min.css" rel="stylesheet">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { background: black; color: white; font-family: sans-serif; overflow: hidden; }
-    video { width: 100vw; height: 100vh; object-fit: cover; }
-    #info { position: absolute; bottom: 0; left: 0; width: 100%; background: rgba(0,0,0,0.7); padding: 10px; display: flex; justify-content: space-between; align-items: center; }
-    #channelName { font-size: 1.2em; }
-    #time { font-size: 1em; color: #ccc; }
-    #controls { position: absolute; top: 10px; right: 10px; z-index: 999; }
+    body { background-color: #000; color: #fff; font-family: sans-serif; overflow: hidden; }
+    .header {
+      background-color: #111;
+      padding: 10px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .header h1 {
+      font-size: 24px;
+      color: #00adee;
+    }
+    .tv-container {
+      width: 100vw;
+      height: calc(100vh - 50px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    video, iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+    }
+    .channel-info {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      background: rgba(0, 0, 0, 0.7);
+      padding: 10px;
+      font-size: 16px;
+    }
   </style>
 </head>
 <body>
-  <video id="player" autoplay controls muted></video>
-  <div id="info">
-    <div id="channelName">Cargando canal...</div>
-    <div id="time"></div>
+  <div class="header">
+    <h1>FlovTV</h1>
+    <span>Canal 10</span>
+  </div>  <div class="tv-container">
+    <iframe src="https://qstreamer.qvixsolutions.com/flow/w3pnT68Bapp?autoplay=1" allowfullscreen></iframe>
+  </div>  <div class="channel-info">
+    Estás viendo: Canal 10 - En vivo
   </div>
-
-  <script>
-    const player = document.getElementById('player');
-    const channelName = document.getElementById('channelName');
-    const time = document.getElementById('time');
-
-    const channels = [
-      { name: "Telefe", url: "https://example.com/telefe.m3u8" },
-      { name: "El Trece", url: "https://example.com/eltrece.m3u8" },
-      { name: "C5N", url: "https://example.com/c5n.m3u8" },
-      { name: "TyC Sports", url: "https://example.com/tyc.m3u8" },
-      { name: "Canal 26", url: "https://example.com/canal26.m3u8" }
-    ];
-
-    let current = 0;
-
-    function loadChannel(index) {
-      const ch = channels[index];
-      player.src = ch.url;
-      channelName.textContent = ch.name;
-    }
-
-    function updateTime() {
-      const now = new Date();
-      time.textContent = now.toLocaleTimeString();
-    }
-
-    setInterval(updateTime, 1000);
-    updateTime();
-    loadChannel(current);
-
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'ArrowUp') {
-        current = (current - 1 + channels.length) % channels.length;
-        loadChannel(current);
-      } else if (e.key === 'ArrowDown') {
-        current = (current + 1) % channels.length;
-        loadChannel(current);
-      }
-    });
-  </script>
 </body>
 </html>
