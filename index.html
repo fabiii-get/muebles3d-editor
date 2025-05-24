@@ -1,75 +1,66 @@
-<!DOCTYPE html><html lang="es">
+<!DOCTYPE html>
+<html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>FlovTV - Simulador</title>
-  <link rel="stylesheet" href="./flow.css"> <!-- Usá el CSS de Flow que descargaste -->
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>FlovTV</title>
+  <link href="https://cdn.jsdelivr.net/npm/@mdi/font/css/materialdesignicons.min.css" rel="stylesheet">
   <style>
-    body {
-      background-color: #000;
-      color: white;
-      font-family: sans-serif;
-      margin: 0;
-      padding: 0;
-    }
-    header {
-      background-color: #1c1c1c;
-      padding: 1rem;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-    header img {
-      height: 40px;
-    }
-    main {
-      padding: 2rem;
-      display: flex;
-      flex-direction: column;
-      gap: 1rem;
-    }
-    .canal {
-      background-color: #222;
-      padding: 1rem;
-      border-radius: 8px;
-    }
-    .canal video, .canal iframe {
-      width: 100%;
-      border-radius: 8px;
-    }
-    .botonera {
-      margin-top: 1rem;
-      display: flex;
-      gap: 1rem;
-    }
-    .boton {
-      background: #333;
-      border: none;
-      color: white;
-      padding: 0.5rem 1rem;
-      border-radius: 4px;
-      cursor: pointer;
-    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: black; color: white; font-family: sans-serif; overflow: hidden; }
+    video { width: 100vw; height: 100vh; object-fit: cover; }
+    #info { position: absolute; bottom: 0; left: 0; width: 100%; background: rgba(0,0,0,0.7); padding: 10px; display: flex; justify-content: space-between; align-items: center; }
+    #channelName { font-size: 1.2em; }
+    #time { font-size: 1em; color: #ccc; }
+    #controls { position: absolute; top: 10px; right: 10px; z-index: 999; }
   </style>
 </head>
 <body>
-  <header>
-    <img src="./logo-flovtv.svg" alt="FlovTV">
-    <span>Simulador sin login</span>
-  </header>
-  <main>
-    <div class="canal">
-      <h2>Canal 1 - Noticias</h2>
-      <iframe src="https://www.youtube.com/embed/live_stream?channel=UCYfdidRxbB8Qhf0Nx7ioOYw" frameborder="0" allowfullscreen></iframe>
-    </div>
-    <div class="canal">
-      <h2>Canal 2 - Películas</h2>
-      <iframe src="https://www.youtube.com/embed/tgbNymZ7vqY" frameborder="0" allowfullscreen></iframe>
-    </div>
-    <div class="canal">
-      <h2>Canal 3 - Series</h2>
-      <iframe src="https://www.youtube.com/embed/TcMBFSGVi1c" frameborder="0" allowfullscreen></iframe>
-    </div>
-  </main>
+  <video id="player" autoplay controls muted></video>
+  <div id="info">
+    <div id="channelName">Cargando canal...</div>
+    <div id="time"></div>
+  </div>
+
+  <script>
+    const player = document.getElementById('player');
+    const channelName = document.getElementById('channelName');
+    const time = document.getElementById('time');
+
+    const channels = [
+      { name: "Telefe", url: "https://example.com/telefe.m3u8" },
+      { name: "El Trece", url: "https://example.com/eltrece.m3u8" },
+      { name: "C5N", url: "https://example.com/c5n.m3u8" },
+      { name: "TyC Sports", url: "https://example.com/tyc.m3u8" },
+      { name: "Canal 26", url: "https://example.com/canal26.m3u8" }
+    ];
+
+    let current = 0;
+
+    function loadChannel(index) {
+      const ch = channels[index];
+      player.src = ch.url;
+      channelName.textContent = ch.name;
+    }
+
+    function updateTime() {
+      const now = new Date();
+      time.textContent = now.toLocaleTimeString();
+    }
+
+    setInterval(updateTime, 1000);
+    updateTime();
+    loadChannel(current);
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowUp') {
+        current = (current - 1 + channels.length) % channels.length;
+        loadChannel(current);
+      } else if (e.key === 'ArrowDown') {
+        current = (current + 1) % channels.length;
+        loadChannel(current);
+      }
+    });
+  </script>
 </body>
 </html>
