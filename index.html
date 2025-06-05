@@ -2,105 +2,103 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Plan de corte de placa</title>
+  <title>Plan de Corte</title>
   <style>
     body {
-      font-family: sans-serif;
-      display: flex;
-      gap: 2rem;
-      padding: 1rem;
-    }
-    .panel {
-      width: 300px;
+      font-family: Arial, sans-serif;
+      margin: 1rem;
     }
     input {
-      width: 100%;
-      margin-bottom: 0.5rem;
       padding: 0.3rem;
+      margin-right: 0.5rem;
+    }
+    button {
+      padding: 0.4rem 0.8rem;
+      margin-top: 0.5rem;
     }
     table {
-      width: 100%;
-      border-collapse: collapse;
       margin-top: 1rem;
+      border-collapse: collapse;
+      width: 100%;
     }
     table, th, td {
-      border: 1px solid #aaa;
+      border: 1px solid #999;
     }
     th, td {
-      padding: 4px;
+      padding: 6px;
       text-align: center;
     }
+    #canvasContainer {
+      margin-top: 2rem;
+      display: none;
+    }
     canvas {
-      border: 2px solid #444;
-      background: #fdfdfd;
+      border: 2px solid #333;
+      background: #fefefe;
     }
   </style>
 </head>
 <body>
-  <div class="panel">
-    <h2>Cargar corte</h2>
-    <label>Ancho (mm):</label>
-    <input id="ancho" type="number" />
-    <label>Alto (mm):</label>
-    <input id="alto" type="number" />
-    <button onclick="agregarCorte()">Agregar corte</button>
-    <table>
-      <thead>
-        <tr>
-          <th>#</th>
-          <th>Ancho</th>
-          <th>Alto</th>
-        </tr>
-      </thead>
-      <tbody id="listaCortes"></tbody>
-    </table>
-  </div>
+  <h2>Cargar Corte</h2>
+  <input type="number" id="ancho" placeholder="Ancho (mm)">
+  <input type="number" id="alto" placeholder="Alto (mm)">
+  <button onclick="agregarCorte()">Agregar</button>
+  <button onclick="verCorte()">Ver corte</button>
 
-  <div>
-    <h2>Placa (2600x1800 mm)</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Ancho</th>
+        <th>Alto</th>
+      </tr>
+    </thead>
+    <tbody id="listaCortes"></tbody>
+  </table>
+
+  <div id="canvasContainer">
+    <h3>Vista del Plan de Corte (Placa 2600x1800 mm)</h3>
     <canvas id="canvas" width="1040" height="720"></canvas>
   </div>
 
   <script>
-    const canvas = document.getElementById("canvas");
-    const ctx = canvas.getContext("2d");
-
+    const cortes = [];
     const escala = 0.4; // 1 mm = 0.4 px
     const placaAncho = 2600;
     const placaAlto = 1800;
-    const cortes = [];
 
     function agregarCorte() {
       const ancho = parseInt(document.getElementById("ancho").value);
       const alto = parseInt(document.getElementById("alto").value);
 
       if (isNaN(ancho) || isNaN(alto) || ancho <= 0 || alto <= 0) {
-        alert("Cargá medidas válidas.");
+        alert("Medidas inválidas");
         return;
       }
 
       cortes.push({ ancho, alto });
       actualizarTabla();
-      dibujarPlaca();
+      document.getElementById("ancho").value = "";
+      document.getElementById("alto").value = "";
     }
 
     function actualizarTabla() {
-      const lista = document.getElementById("listaCortes");
-      lista.innerHTML = "";
-      cortes.forEach((corte, index) => {
-        lista.innerHTML += `<tr>
-          <td>${index + 1}</td>
-          <td>${corte.ancho}</td>
-          <td>${corte.alto}</td>
-        </tr>`;
+      const tabla = document.getElementById("listaCortes");
+      tabla.innerHTML = "";
+      cortes.forEach((c, i) => {
+        tabla.innerHTML += `<tr><td>${i + 1}</td><td>${c.ancho}</td><td>${c.alto}</td></tr>`;
       });
     }
 
-    function dibujarPlaca() {
+    function verCorte() {
+      const canvas = document.getElementById("canvas");
+      const ctx = canvas.getContext("2d");
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      // Borde de placa
+      // Mostrar contenedor
+      document.getElementById("canvasContainer").style.display = "block";
+
+      // Dibuja la placa
       ctx.strokeStyle = "#000";
       ctx.strokeRect(0, 0, placaAncho * escala, placaAlto * escala);
 
@@ -108,9 +106,9 @@
       let y = 0;
       let filaAlto = 0;
 
-      ctx.fillStyle = "#87cefa"; // color de los cortes
+      ctx.fillStyle = "#87cefa";
 
-      cortes.forEach((corte, i) => {
+      cortes.forEach((corte) => {
         const w = corte.ancho * escala;
         const h = corte.alto * escala;
 
@@ -121,7 +119,8 @@
         }
 
         if (y + h > placaAlto * escala) {
-          console.warn("Sin espacio para el corte", corte);
+          ctx.fillStyle = "#f00";
+          ctx.fillText("¡Sin espacio!", 10, canvas.height - 10);
           return;
         }
 
@@ -136,8 +135,6 @@
         if (h > filaAlto) filaAlto = h;
       });
     }
-
-    dibujarPlaca(); // primer dibujo vacío
   </script>
 </body>
 </html>
