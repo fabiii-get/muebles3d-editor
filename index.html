@@ -1,179 +1,143 @@
-<!DOCTYPE html><html lang="es">
+<!DOCTYPE html>
+<html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Melamina Sol - Optimizador de Cortes</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Plan de corte de placa</title>
   <style>
     body {
       font-family: sans-serif;
-      background-color: #fffde7;
-      margin: 0;
+      display: flex;
+      gap: 2rem;
       padding: 1rem;
     }
-    h1 {
-      text-align: center;
-      color: #ff9800;
+    .panel {
+      width: 300px;
     }
-    .formulario, .resultado, .vista-cortes {
-      max-width: 600px;
-      margin: 1rem auto;
-      display: none;
-    }
-    .formulario.active, .resultado.active, .vista-cortes.active {
-      display: block;
-    }
-    label {
-      display: block;
-      margin-top: 10px;
-    }
-    input[type="number"], select {
+    input {
       width: 100%;
-      padding: 0.5rem;
-      margin-top: 5px;
-    }
-    .cantos input {
-      width: auto;
-      margin-right: 5px;
-    }
-    button {
-      margin-top: 1rem;
-      background-color: #ff9800;
-      color: white;
-      padding: 0.7rem;
-      border: none;
-      cursor: pointer;
-      width: 100%;
+      margin-bottom: 0.5rem;
+      padding: 0.3rem;
     }
     table {
       width: 100%;
       border-collapse: collapse;
       margin-top: 1rem;
     }
+    table, th, td {
+      border: 1px solid #aaa;
+    }
     th, td {
-      border: 1px solid #ccc;
-      padding: 0.5rem;
+      padding: 4px;
       text-align: center;
     }
     canvas {
-      margin-top: 1rem;
-      border: 1px solid #999;
-      width: 100%;
-      height: auto;
+      border: 2px solid #444;
+      background: #fdfdfd;
     }
   </style>
 </head>
-<body>  <h1>Melamina Sol</h1>  <div id="pantallaPrincipal" class="formulario active">
-    <h2>Configuración de Placa</h2>
-    <label>Ancho (mm)</label>
-    <input type="number" id="placaAncho" value="2600"><label>Alto (mm)</label>
-<input type="number" id="placaAlto" value="1830">
-
-<h2>Agregar Pieza</h2>
-<label>Cantidad</label>
-<input type="number" id="cantidad" value="1">
-
-<label>Ancho (mm)</label>
-<input type="number" id="ancho" required>
-
-<label>Alto (mm)</label>
-<input type="number" id="alto" required>
-
-<label>Cantos</label>
-<div class="cantos">
-  <label><input type="checkbox" id="cantoIzq"> Izquierda</label>
-  <label><input type="checkbox" id="cantoDer"> Derecha</label>
-  <label><input type="checkbox" id="cantoSup"> Superior</label>
-  <label><input type="checkbox" id="cantoInf"> Inferior</label>
-</div>
-
-<button onclick="agregarPieza()">Agregar Pieza</button>
-<button onclick="optimizar()">Optimizar Corte</button>
-<button onclick="limpiarTodo()">Limpiar Todo</button>
-<button onclick="verCortes()">Ver Cortes</button>
-
-  </div>  <div id="pantallaResultado" class="resultado active">
-    <h2>Lista de Piezas</h2>
-    <table id="tablaPiezas">
+<body>
+  <div class="panel">
+    <h2>Cargar corte</h2>
+    <label>Ancho (mm):</label>
+    <input id="ancho" type="number" />
+    <label>Alto (mm):</label>
+    <input id="alto" type="number" />
+    <button onclick="agregarCorte()">Agregar corte</button>
+    <table>
       <thead>
         <tr>
           <th>#</th>
-          <th>Cant</th>
-          <th>Medidas</th>
-          <th>Cantos</th>
-          <th>Acción</th>
+          <th>Ancho</th>
+          <th>Alto</th>
         </tr>
       </thead>
-      <tbody></tbody>
+      <tbody id="listaCortes"></tbody>
     </table>
-  </div>  <div id="pantallaCortes" class="vista-cortes">
-    <h2>Vista de Cortes</h2>
-    <canvas id="canvas" width="800" height="600"></canvas>
-    <button onclick="volverAPrincipal()">Volver</button>
-  </div>  <script>
-    const piezas = [];
+  </div>
 
-    function agregarPieza() {
-      const cantidad = parseInt(document.getElementById('cantidad').value);
-      const ancho = parseInt(document.getElementById('ancho').value);
-      const alto = parseInt(document.getElementById('alto').value);
-      const cantos = [];
-      if (document.getElementById('cantoIzq').checked) cantos.push('Izq');
-      if (document.getElementById('cantoDer').checked) cantos.push('Der');
-      if (document.getElementById('cantoSup').checked) cantos.push('Sup');
-      if (document.getElementById('cantoInf').checked) cantos.push('Inf');
+  <div>
+    <h2>Placa (2600x1800 mm)</h2>
+    <canvas id="canvas" width="1040" height="720"></canvas>
+  </div>
 
-      if (!ancho || !alto || cantidad <= 0) return alert('Faltan datos');
+  <script>
+    const canvas = document.getElementById("canvas");
+    const ctx = canvas.getContext("2d");
 
-      for (let i = 0; i < cantidad; i++) {
-        piezas.push({ ancho, alto, cantos });
+    const escala = 0.4; // 1 mm = 0.4 px
+    const placaAncho = 2600;
+    const placaAlto = 1800;
+    const cortes = [];
+
+    function agregarCorte() {
+      const ancho = parseInt(document.getElementById("ancho").value);
+      const alto = parseInt(document.getElementById("alto").value);
+
+      if (isNaN(ancho) || isNaN(alto) || ancho <= 0 || alto <= 0) {
+        alert("Cargá medidas válidas.");
+        return;
       }
 
+      cortes.push({ ancho, alto });
       actualizarTabla();
+      dibujarPlaca();
     }
 
     function actualizarTabla() {
-      const tbody = document.querySelector("#tablaPiezas tbody");
-      tbody.innerHTML = "";
-      piezas.forEach((pieza, i) => {
-        const row = document.createElement("tr");
-        row.innerHTML = `
-          <td>${i + 1}</td>
-          <td>1</td>
-          <td>${pieza.ancho} x ${pieza.alto}</td>
-          <td>${pieza.cantos.join(", ")}</td>
-          <td><button onclick="eliminarPieza(${i})">Eliminar</button></td>
-        `;
-        tbody.appendChild(row);
+      const lista = document.getElementById("listaCortes");
+      lista.innerHTML = "";
+      cortes.forEach((corte, index) => {
+        lista.innerHTML += `<tr>
+          <td>${index + 1}</td>
+          <td>${corte.ancho}</td>
+          <td>${corte.alto}</td>
+        </tr>`;
       });
     }
 
-    function eliminarPieza(i) {
-      piezas.splice(i, 1);
-      actualizarTabla();
+    function dibujarPlaca() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Borde de placa
+      ctx.strokeStyle = "#000";
+      ctx.strokeRect(0, 0, placaAncho * escala, placaAlto * escala);
+
+      let x = 0;
+      let y = 0;
+      let filaAlto = 0;
+
+      ctx.fillStyle = "#87cefa"; // color de los cortes
+
+      cortes.forEach((corte, i) => {
+        const w = corte.ancho * escala;
+        const h = corte.alto * escala;
+
+        if (x + w > placaAncho * escala) {
+          x = 0;
+          y += filaAlto;
+          filaAlto = 0;
+        }
+
+        if (y + h > placaAlto * escala) {
+          console.warn("Sin espacio para el corte", corte);
+          return;
+        }
+
+        ctx.fillRect(x, y, w, h);
+        ctx.strokeRect(x, y, w, h);
+        ctx.fillStyle = "#000";
+        ctx.font = "10px Arial";
+        ctx.fillText(`${corte.ancho}x${corte.alto}`, x + 2, y + 12);
+        ctx.fillStyle = "#87cefa";
+
+        x += w;
+        if (h > filaAlto) filaAlto = h;
+      });
     }
 
-    function limpiarTodo() {
-      piezas.length = 0;
-      actualizarTabla();
-      const ctx = document.getElementById('canvas').getContext('2d');
-      ctx.clearRect(0, 0, 800, 600);
-    }
-
-    function optimizar() {
-      // Aquí irá la lógica de dibujo en canvas (parte 2)
-      alert("Optimización lista. Tocá 'Ver Cortes' para visualizar.");
-    }
-
-    function verCortes() {
-      document.getElementById('pantallaPrincipal').classList.remove('active');
-      document.getElementById('pantallaResultado').classList.remove('active');
-      document.getElementById('pantallaCortes').classList.add('active');
-    }
-
-    function volverAPrincipal() {
-      document.getElementById('pantallaPrincipal').classList.add('active');
-      document.getElementById('pantallaResultado').classList.add('active');
-      document.getElementById('pantallaCortes').classList.remove('active');
-    }
-  </script></body>
+    dibujarPlaca(); // primer dibujo vacío
+  </script>
+</body>
 </html>
