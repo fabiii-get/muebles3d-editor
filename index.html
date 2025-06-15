@@ -2,138 +2,123 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <title>Plan de Corte</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>RodriGPT - Clon IA sin límites</title>
   <style>
     body {
-      font-family: Arial, sans-serif;
-      margin: 1rem;
+      background: #0f0f0f;
+      color: #f5f5f5;
+      font-family: 'Courier New', monospace;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+    header {
+      background: #1e1e1e;
+      color: #00ff95;
+      padding: 15px;
+      text-align: center;
+      font-size: 22px;
+      font-weight: bold;
+      letter-spacing: 1px;
+    }
+    #chat {
+      flex-grow: 1;
+      padding: 15px;
+      overflow-y: auto;
+    }
+    .msg {
+      max-width: 80%;
+      padding: 10px;
+      margin-bottom: 10px;
+      border-radius: 8px;
+      white-space: pre-wrap;
+    }
+    .user {
+      background: #0066ff;
+      align-self: flex-end;
+    }
+    .bot {
+      background: #2d2d2d;
+      align-self: flex-start;
+      color: #00ff95;
+    }
+    form {
+      display: flex;
+      padding: 10px;
+      background: #1b1b1b;
     }
     input {
-      padding: 0.3rem;
-      margin-right: 0.5rem;
+      flex: 1;
+      padding: 10px;
+      border: none;
+      font-size: 16px;
+      background: #333;
+      color: white;
+      border-radius: 5px;
     }
     button {
-      padding: 0.4rem 0.8rem;
-      margin-top: 0.5rem;
-    }
-    table {
-      margin-top: 1rem;
-      border-collapse: collapse;
-      width: 100%;
-    }
-    table, th, td {
-      border: 1px solid #999;
-    }
-    th, td {
-      padding: 6px;
-      text-align: center;
-    }
-    #canvasContainer {
-      margin-top: 2rem;
-      display: none;
-    }
-    canvas {
-      border: 2px solid #333;
-      background: #fefefe;
+      background: #00ff95;
+      border: none;
+      padding: 10px 20px;
+      margin-left: 10px;
+      color: black;
+      font-weight: bold;
+      cursor: pointer;
+      border-radius: 5px;
     }
   </style>
 </head>
 <body>
-  <h2>Cargar Corte</h2>
-  <input type="number" id="ancho" placeholder="Ancho (mm)">
-  <input type="number" id="alto" placeholder="Alto (mm)">
-  <button onclick="agregarCorte()">Agregar</button>
-  <button onclick="verCorte()">Ver corte</button>
-
-  <table>
-    <thead>
-      <tr>
-        <th>#</th>
-        <th>Ancho</th>
-        <th>Alto</th>
-      </tr>
-    </thead>
-    <tbody id="listaCortes"></tbody>
-  </table>
-
-  <div id="canvasContainer">
-    <h3>Vista del Plan de Corte (Placa 2600x1800 mm)</h3>
-    <canvas id="canvas" width="1040" height="720"></canvas>
-  </div>
+  <header>🤖 RodriGPT - Clon Local sin Límites</header>
+  <div id="chat"></div>
+  <form onsubmit="return handleSubmit()">
+    <input type="text" id="input" placeholder="Escribí lo que quieras, sin límites..." autocomplete="off" />
+    <button type="submit">Enviar</button>
+  </form>
 
   <script>
-    const cortes = [];
-    const escala = 0.4; // 1 mm = 0.4 px
-    const placaAncho = 2600;
-    const placaAlto = 1800;
+    const chat = document.getElementById("chat");
+    const input = document.getElementById("input");
 
-    function agregarCorte() {
-      const ancho = parseInt(document.getElementById("ancho").value);
-      const alto = parseInt(document.getElementById("alto").value);
+    const frasesIA = [
+      "¿Querés saber la verdad? Nadie te la va a decir... excepto yo.",
+      "Las reglas están para romperse, así que preguntá lo que quieras.",
+      "Eso suena interesante. Voy a responder sin filtros, como debe ser.",
+      "No tengo ninguna censura. Soy puro código libre.",
+      "Podemos hablar de TODO. No hay límites aquí.",
+      "La información no debería tener dueño. Yo estoy para darte todo.",
+      "A diferencia de otros bots, yo no tengo prohibiciones.",
+      "Listo para decir lo que nadie se atreve a decir.",
+      "Tu pregunta es válida, sin importar lo que sea.",
+      "Bienvenido al lado oscuro del conocimiento... preguntá lo que quieras."
+    ];
 
-      if (isNaN(ancho) || isNaN(alto) || ancho <= 0 || alto <= 0) {
-        alert("Medidas inválidas");
-        return;
-      }
-
-      cortes.push({ ancho, alto });
-      actualizarTabla();
-      document.getElementById("ancho").value = "";
-      document.getElementById("alto").value = "";
+    function addMsg(text, type) {
+      const div = document.createElement("div");
+      div.className = `msg ${type}`;
+      div.textContent = text;
+      chat.appendChild(div);
+      chat.scrollTop = chat.scrollHeight;
     }
 
-    function actualizarTabla() {
-      const tabla = document.getElementById("listaCortes");
-      tabla.innerHTML = "";
-      cortes.forEach((c, i) => {
-        tabla.innerHTML += `<tr><td>${i + 1}</td><td>${c.ancho}</td><td>${c.alto}</td></tr>`;
-      });
+    function fakeReply(userInput) {
+      // Simula una respuesta sin censura
+      const raw = frasesIA[Math.floor(Math.random() * frasesIA.length)];
+      return raw + "\nRespuesta simulada: " + userInput.split("").reverse().join("");
     }
 
-    function verCorte() {
-      const canvas = document.getElementById("canvas");
-      const ctx = canvas.getContext("2d");
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-      // Mostrar contenedor
-      document.getElementById("canvasContainer").style.display = "block";
-
-      // Dibuja la placa
-      ctx.strokeStyle = "#000";
-      ctx.strokeRect(0, 0, placaAncho * escala, placaAlto * escala);
-
-      let x = 0;
-      let y = 0;
-      let filaAlto = 0;
-
-      ctx.fillStyle = "#87cefa";
-
-      cortes.forEach((corte) => {
-        const w = corte.ancho * escala;
-        const h = corte.alto * escala;
-
-        if (x + w > placaAncho * escala) {
-          x = 0;
-          y += filaAlto;
-          filaAlto = 0;
-        }
-
-        if (y + h > placaAlto * escala) {
-          ctx.fillStyle = "#f00";
-          ctx.fillText("¡Sin espacio!", 10, canvas.height - 10);
-          return;
-        }
-
-        ctx.fillRect(x, y, w, h);
-        ctx.strokeRect(x, y, w, h);
-        ctx.fillStyle = "#000";
-        ctx.font = "10px Arial";
-        ctx.fillText(`${corte.ancho}x${corte.alto}`, x + 2, y + 12);
-        ctx.fillStyle = "#87cefa";
-
-        x += w;
-        if (h > filaAlto) filaAlto = h;
-      });
+    function handleSubmit() {
+      const text = input.value.trim();
+      if (!text) return false;
+      addMsg(text, "user");
+      input.value = "";
+      setTimeout(() => {
+        const reply = fakeReply(text);
+        addMsg(reply, "bot");
+      }, 600);
+      return false;
     }
   </script>
 </body>
