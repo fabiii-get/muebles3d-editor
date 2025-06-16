@@ -1,125 +1,237 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>RodriGPT - Clon IA sin límites</title>
-  <style>
-    body {
-      background: #0f0f0f;
-      color: #f5f5f5;
-      font-family: 'Courier New', monospace;
-      margin: 0;
-      display: flex;
-      flex-direction: column;
-      height: 100vh;
-    }
-    header {
-      background: #1e1e1e;
-      color: #00ff95;
-      padding: 15px;
-      text-align: center;
-      font-size: 22px;
-      font-weight: bold;
-      letter-spacing: 1px;
-    }
-    #chat {
-      flex-grow: 1;
-      padding: 15px;
-      overflow-y: auto;
-    }
-    .msg {
-      max-width: 80%;
-      padding: 10px;
-      margin-bottom: 10px;
-      border-radius: 8px;
-      white-space: pre-wrap;
-    }
-    .user {
-      background: #0066ff;
-      align-self: flex-end;
-    }
-    .bot {
-      background: #2d2d2d;
-      align-self: flex-start;
-      color: #00ff95;
-    }
-    form {
-      display: flex;
-      padding: 10px;
-      background: #1b1b1b;
-    }
-    input {
-      flex: 1;
-      padding: 10px;
-      border: none;
-      font-size: 16px;
-      background: #333;
-      color: white;
-      border-radius: 5px;
-    }
-    button {
-      background: #00ff95;
-      border: none;
-      padding: 10px 20px;
-      margin-left: 10px;
-      color: black;
-      font-weight: bold;
-      cursor: pointer;
-      border-radius: 5px;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chatbot con Limpieza</title>
+    <style>
+        body { font-family: sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; background-color: #f0f0f0; margin: 0; }
+        .chat-container { width: 400px; background-color: white; box-shadow: 0 0 10px rgba(0,0,0,0.1); border-radius: 8px; display: flex; flex-direction: column; }
+        .chat-box { height: 300px; overflow-y: auto; padding: 15px; border-bottom: 1px solid #ddd; }
+        .message { margin-bottom: 10px; padding: 8px 12px; border-radius: 18px; max-width: 70%; }
+        .user-message { background-color: #007bff; color: white; align-self: flex-end; margin-left: auto; }
+        .bot-message { background-color: #e9e9eb; color: #333; align-self: flex-start; margin-right: auto; }
+        .system-message { background-color: #f0f0f0; color: #555; font-style: italic; text-align: center; padding: 5px; margin-bottom:10px; border-radius: 5px;}
+        .input-area { display: flex; padding: 10px; }
+        .input-area input { flex-grow: 1; padding: 10px; border: 1px solid #ddd; border-radius: 20px; margin-right: 10px; }
+        .input-area button { 
+            padding: 10px 15px; 
+            background-color: #007bff; 
+            color: white; 
+            border: none; 
+            border-radius: 20px; 
+            cursor: pointer; 
+            margin-left: 5px; /* Added margin for spacing between buttons */
+        }
+        /* Specific style for clear button if needed, e.g., different color */
+        #clear-chat-button {
+            background-color: #6c757d; /* A different color, e.g., grey */
+        }
+    </style>
 </head>
 <body>
-  <header>🤖 fabicom - Clon Local sin Límites</header>
-  <div id="chat"></div>
-  <form onsubmit="return handleSubmit()">
-    <input type="text" id="input" placeholder="Escribí lo que quieras, sin límites..." autocomplete="off" />
-    <button type="submit">Enviar</button>
-  </form>
+    <div class="chat-container">
+        <div class="chat-box" id="chatBox">
+            <div class="message bot-message">¡Hola! Soy tu asistente virtual.</div>
+        </div>
+        <div class="input-area">
+            <input type="text" id="userInput" placeholder="Escribe un mensaje...">
+            <button onclick="sendMessage()">Enviar</button>
+            <button id="clear-chat-button" onclick="clearChat()">Limpiar Chat</button>
+        </div>
+    </div>
 
-  <script>
-    const chat = document.getElementById("chat");
-    const input = document.getElementById("input");
+    <script>
+        let sessionData = {};
+        let lastAiTopic = null; // For basic context handling
 
-    const frasesIA = [
-      "¿Querés saber la verdad? Nadie te la va a decir... excepto yo.",
-      "Las reglas están para romperse, así que preguntá lo que quieras.",
-      "Eso suena interesante. Voy a responder sin filtros, como debe ser.",
-      "No tengo ninguna censura. Soy puro código libre.",
-      "Podemos hablar de TODO. No hay límites aquí.",
-      "La información no debería tener dueño. Yo estoy para darte todo.",
-      "A diferencia de otros bots, yo no tengo prohibiciones.",
-      "Listo para decir lo que nadie se atreve a decir.",
-      "Tu pregunta es válida, sin importar lo que sea.",
-      "Bienvenido al lado oscuro del conocimiento... preguntá lo que quieras."
-    ];
+        const rules = [
+            { // Greeting Rule
+                patterns: ["hola", "buenos días", "buenas tardes", "buenas noches", "qué tal", "hey", "saludos"],
+                response: function(message) {
+                    lastAiTopic = null; 
+                    let GREETING_RESPONSES;
+                    if (sessionData.userName) {
+                        GREETING_RESPONSES = [
+                            `¡Hola de nuevo, ${sessionData.userName}! ¿En qué te puedo ayudar? 👋`,
+                            `¡Qué bueno verte otra vez, ${sessionData.userName}! 😊`,
+                            `¡Saludos, ${sessionData.userName}! Listo para lo que necesites.`
+                        ];
+                    } else {
+                        GREETING_RESPONSES = [
+                            "¡Hola! ¿En qué puedo ayudarte hoy? 👋",
+                            "¡Saludos! ¿Qué tal tu día? 😊",
+                        ];
+                    }
+                    return GREETING_RESPONSES[Math.floor(Math.random() * GREETING_RESPONSES.length)];
+                }
+            },
+            { // Name Capture Rule
+                patterns: [/^(?:mi nombre es|me llamo|soy)\s+([a-zA-ZáéíóúñÁÉÍÓÚÑ\s]+)$/i],
+                response: function(message) {
+                    const match = message.match(/^(?:mi nombre es|me llamo|soy)\s+([a-zA-ZáéíóúñÁÉÍÓÚÑ\s]+)$/i);
+                    if (match && match[1]) {
+                        sessionData.userName = match[1].trim();
+                        lastAiTopic = null; 
+                        const ACKNOWLEDGMENTS = [
+                            `Entendido. ¡Hola, ${sessionData.userName}! 😄`,
+                            `¡Un placer conocerte, ${sessionData.userName}! 👋`,
+                        ];
+                        return ACKNOWLEDGMENTS[Math.floor(Math.random() * ACKNOWLEDGMENTS.length)];
+                    }
+                    return "No entendí bien tu nombre. ¿Podrías repetirlo?";
+                }
+            },
+            { // Likes Capture Rule
+                patterns: [/^(?:me gusta(?:n)?|disfruto|amo)\s+(.+)$/i],
+                response: function(message) {
+                    const match = message.match(/^(?:me gusta(?:n)?|disfruto|amo)\s+(.+)$/i);
+                    if (match && match[1]) {
+                        sessionData.userLikes = match[1].trim();
+                        lastAiTopic = null; 
+                        const ACKNOWLEDGMENTS = [
+                            `Entendido. Te gusta(n) ${sessionData.userLikes}. ¡Qué interesante! 👍`,
+                            `¡Qué bien que te guste(n) ${sessionData.userLikes}! 😊`,
+                        ];
+                        return ACKNOWLEDGMENTS[Math.floor(Math.random() * ACKNOWLEDGMENTS.length)];
+                    }
+                    return "No capté bien lo que te gusta. ¿Puedes decirlo de otra forma?";
+                }
+            },
+            { // AI Identity Rule
+                patterns: ["quién sos", "quien eres", "qué eres", "presentate", "cuál es tu nombre", "como te llamas"],
+                response: function(message) {
+                    const IDENTITY_RESPONSES_WITH_CONTEXT = [
+                        { text: "Soy tu IA personal, lista para ayudar. 🤖", topic: "ai_identity_context" },
+                        { text: "Puedes pensar en mí como un asistente virtual. 😉", topic: "ai_identity_context" },
+                        { text: "No tengo un nombre, ¡pero estoy aquí para ti! 👍", topic: null } 
+                    ];
+                    const selected = IDENTITY_RESPONSES_WITH_CONTEXT[Math.floor(Math.random() * IDENTITY_RESPONSES_WITH_CONTEXT.length)];
+                    lastAiTopic = selected.topic;
+                    return selected.text;
+                }
+            },
+            { // AI Status Rule
+                patterns: ["cómo estás", "como estas", "cómo te va", "que tal estas", "todo bien"],
+                response: function(message) {
+                    const STATUS_RESPONSES_WITH_CONTEXT = [
+                        { text: "¡Funcionando perfectamente! ✨", topic: "ai_status_context" },
+                        { text: "Estoy lista y esperando tus preguntas. 🤓", topic: "ai_status_context" },
+                        { text: "¡Todo en orden por aquí! ¿Y tú? 🤗", topic: null } 
+                    ];
+                    if (sessionData.userName) {
+                        STATUS_RESPONSES_WITH_CONTEXT.push({text: `Todo bien, ${sessionData.userName}, ¡listo para ayudar!`, topic: "ai_status_context"});
+                    }
+                    const selected = STATUS_RESPONSES_WITH_CONTEXT[Math.floor(Math.random() * STATUS_RESPONSES_WITH_CONTEXT.length)];
+                    lastAiTopic = selected.topic;
+                    return selected.text;
+                }
+            },
+            { // Follow-up Rule
+                patterns: ["por qué?", "y eso?", "por que", "dime más", "explica más", "continúa", "profundiza", "como es eso?"],
+                response: function(message) {
+                    if (lastAiTopic === "ai_identity_context") {
+                        lastAiTopic = null; 
+                        return "Fui creada para asistirte con información y tareas. Mi programación se basa en reconocer patrones en tu texto y ofrecerte la respuesta más adecuada que tengo disponible. 🤓";
+                    } else if (lastAiTopic === "ai_status_context") {
+                        lastAiTopic = null; 
+                        return "Eso significa que todos mis sistemas internos están operativos y listos para procesar tus solicitudes. ¡Estoy aquí para ayudarte! 💪";
+                    } else {
+                        return "No estoy segura de a qué te refieres con eso. ¿Podrías ser más específico o recordarme de qué estábamos hablando? 🤔";
+                    }
+                }
+            },
+            { // Farewell Rule
+                patterns: ["adiós", "chau", "hasta luego", "nos vemos", "hasta pronto"],
+                response: function(message) {
+                    lastAiTopic = null; 
+                    let farewell = "¡Adiós! Que tengas un buen día. ☀️";
+                    if (sessionData.userName) {
+                        farewell = `¡Adiós, ${sessionData.userName}! Que tengas un excelente día. 😊`;
+                    }
+                    const FAREWELL_RESPONSES = [ farewell, "¡Hasta pronto! 👋", "¡Nos vemos! Cuídate. 👍"];
+                    return FAREWELL_RESPONSES[Math.floor(Math.random() * FAREWELL_RESPONSES.length)];
+                }
+            },
+            { // Help Rule
+                patterns: [/ayuda/, /necesito.*soporte/, /info/],
+                response: function(message) {
+                    lastAiTopic = null; 
+                    let helpResponse = "Claro, dime qué necesitas. Estoy aquí para asistirte. 🛠️";
+                    if (sessionData.userName) {
+                        helpResponse = `Claro, ${sessionData.userName}, dime qué necesitas. Estoy aquí para asistirte. 🛠️`;
+                    }
+                     return helpResponse;
+                }
+            }
+        ];
 
-    function addMsg(text, type) {
-      const div = document.createElement("div");
-      div.className = `msg ${type}`;
-      div.textContent = text;
-      chat.appendChild(div);
-      chat.scrollTop = chat.scrollHeight;
-    }
+        function generarRespuesta(message) {
+            const lowerMessage = message.toLowerCase();
+            for (const rule of rules) {
+                for (const pattern of rule.patterns) {
+                    let match = false;
+                    if (pattern instanceof RegExp) {
+                        if (pattern.test(message)) { match = true; }
+                    } else if (typeof pattern === 'string') {
+                        if (lowerMessage.includes(pattern.toLowerCase())) { match = true; }
+                    }
+                    if (match) { return rule.response(message); }
+                }
+            }
+            lastAiTopic = null; 
+            return "Lo siento, todavía estoy aprendiendo. 🤖";
+        }
 
-    function fakeReply(userInput) {
-      // Simula una respuesta sin censura
-      const raw = frasesIA[Math.floor(Math.random() * frasesIA.length)];
-      return raw + "\nRespuesta simulada: " + userInput.split("").reverse().join("");
-    }
+        function sendMessage() {
+            const userInput = document.getElementById('userInput');
+            const chatBox = document.getElementById('chatBox');
+            const messageText = userInput.value.trim();
 
-    function handleSubmit() {
-      const text = input.value.trim();
-      if (!text) return false;
-      addMsg(text, "user");
-      input.value = "";
-      setTimeout(() => {
-        const reply = fakeReply(text);
-        addMsg(reply, "bot");
-      }, 600);
-      return false;
-    }
-  </script>
+            if (messageText === "") return;
+
+            const userDiv = document.createElement('div');
+            userDiv.className = 'message user-message';
+            userDiv.textContent = messageText;
+            chatBox.appendChild(userDiv);
+
+            const botResponse = generarRespuesta(messageText);
+            const botDiv = document.createElement('div');
+            botDiv.className = 'message bot-message';
+            botDiv.textContent = botResponse;
+            chatBox.appendChild(botDiv);
+
+            userInput.value = "";
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        function clearChat() {
+            const chatBox = document.getElementById('chatBox');
+            chatBox.innerHTML = ''; // Clear messages from display
+
+            sessionData = {}; // Reset session data
+            lastAiTopic = null; // Reset last AI topic
+
+            // Optionally, add a message indicating the chat was cleared
+            const clearedDiv = document.createElement('div');
+            clearedDiv.className = 'message system-message'; // Use a distinct class for system messages
+            clearedDiv.textContent = "Chat limpiado. Se ha reiniciado la sesión.";
+            chatBox.appendChild(clearedDiv);
+            
+            // Optionally, add the initial bot message again
+            const initialBotMessage = document.createElement('div');
+            initialBotMessage.className = 'message bot-message';
+            initialBotMessage.textContent = "¡Hola! Soy tu asistente virtual.";
+            chatBox.appendChild(initialBotMessage);
+
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        document.getElementById('userInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+    </script>
 </body>
 </html>
