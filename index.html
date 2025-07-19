@@ -1,237 +1,45 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chatbot con Limpieza</title>
-    <style>
-        body { font-family: sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; background-color: #f0f0f0; margin: 0; }
-        .chat-container { width: 400px; background-color: white; box-shadow: 0 0 10px rgba(0,0,0,0.1); border-radius: 8px; display: flex; flex-direction: column; }
-        .chat-box { height: 300px; overflow-y: auto; padding: 15px; border-bottom: 1px solid #ddd; }
-        .message { margin-bottom: 10px; padding: 8px 12px; border-radius: 18px; max-width: 70%; }
-        .user-message { background-color: #007bff; color: white; align-self: flex-end; margin-left: auto; }
-        .bot-message { background-color: #e9e9eb; color: #333; align-self: flex-start; margin-right: auto; }
-        .system-message { background-color: #f0f0f0; color: #555; font-style: italic; text-align: center; padding: 5px; margin-bottom:10px; border-radius: 5px;}
-        .input-area { display: flex; padding: 10px; }
-        .input-area input { flex-grow: 1; padding: 10px; border: 1px solid #ddd; border-radius: 20px; margin-right: 10px; }
-        .input-area button { 
-            padding: 10px 15px; 
-            background-color: #007bff; 
-            color: white; 
-            border: none; 
-            border-radius: 20px; 
-            cursor: pointer; 
-            margin-left: 5px; /* Added margin for spacing between buttons */
-        }
-        /* Specific style for clear button if needed, e.g., different color */
-        #clear-chat-button {
-            background-color: #6c757d; /* A different color, e.g., grey */
-        }
-    </style>
+  <meta charset="UTF-8">
+  <title>Kemieronla Sok - App de Préstamos</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      line-height: 1.6;
+      background-color: #f9f9f9;
+    }
+    h1 {
+      color: #333;
+    }
+    h2 {
+      margin-top: 30px;
+      color: #555;
+    }
+    ul, ol {
+      margin-left: 20px;
+    }
+  </style>
 </head>
 <body>
-    <div class="chat-container">
-        <div class="chat-box" id="chatBox">
-            <div class="message bot-message">¡Hola! Soy tu asistente virtual.</div>
-        </div>
-        <div class="input-area">
-            <input type="text" id="userInput" placeholder="Escribe un mensaje...">
-            <button onclick="sendMessage()">Enviar</button>
-            <button id="clear-chat-button" onclick="clearChat()">Limpiar Chat</button>
-        </div>
-    </div>
+  <h1>📱 Kemieronla Sok - App de Préstamos</h1>
 
-    <script>
-        let sessionData = {};
-        let lastAiTopic = null; // For basic context handling
+  <h2>🎯 Objetivo</h2>
+  <p>Crear una app de préstamos estilo WhatsApp donde cada cliente tenga su propia pestaña y se registre todo su historial financiero, incluyendo pagos, atrasos y estado actual. Todo debe poder exportarse como PDF desde el celular, sin conexión a internet.</p>
 
-        const rules = [
-            { // Greeting Rule
-                patterns: ["hola", "buenos días", "buenas tardes", "buenas noches", "qué tal", "hey", "saludos"],
-                response: function(message) {
-                    lastAiTopic = null; 
-                    let GREETING_RESPONSES;
-                    if (sessionData.userName) {
-                        GREETING_RESPONSES = [
-                            `¡Hola de nuevo, ${sessionData.userName}! ¿En qué te puedo ayudar? 👋`,
-                            `¡Qué bueno verte otra vez, ${sessionData.userName}! 😊`,
-                            `¡Saludos, ${sessionData.userName}! Listo para lo que necesites.`
-                        ];
-                    } else {
-                        GREETING_RESPONSES = [
-                            "¡Hola! ¿En qué puedo ayudarte hoy? 👋",
-                            "¡Saludos! ¿Qué tal tu día? 😊",
-                        ];
-                    }
-                    return GREETING_RESPONSES[Math.floor(Math.random() * GREETING_RESPONSES.length)];
-                }
-            },
-            { // Name Capture Rule
-                patterns: [/^(?:mi nombre es|me llamo|soy)\s+([a-zA-ZáéíóúñÁÉÍÓÚÑ\s]+)$/i],
-                response: function(message) {
-                    const match = message.match(/^(?:mi nombre es|me llamo|soy)\s+([a-zA-ZáéíóúñÁÉÍÓÚÑ\s]+)$/i);
-                    if (match && match[1]) {
-                        sessionData.userName = match[1].trim();
-                        lastAiTopic = null; 
-                        const ACKNOWLEDGMENTS = [
-                            `Entendido. ¡Hola, ${sessionData.userName}! 😄`,
-                            `¡Un placer conocerte, ${sessionData.userName}! 👋`,
-                        ];
-                        return ACKNOWLEDGMENTS[Math.floor(Math.random() * ACKNOWLEDGMENTS.length)];
-                    }
-                    return "No entendí bien tu nombre. ¿Podrías repetirlo?";
-                }
-            },
-            { // Likes Capture Rule
-                patterns: [/^(?:me gusta(?:n)?|disfruto|amo)\s+(.+)$/i],
-                response: function(message) {
-                    const match = message.match(/^(?:me gusta(?:n)?|disfruto|amo)\s+(.+)$/i);
-                    if (match && match[1]) {
-                        sessionData.userLikes = match[1].trim();
-                        lastAiTopic = null; 
-                        const ACKNOWLEDGMENTS = [
-                            `Entendido. Te gusta(n) ${sessionData.userLikes}. ¡Qué interesante! 👍`,
-                            `¡Qué bien que te guste(n) ${sessionData.userLikes}! 😊`,
-                        ];
-                        return ACKNOWLEDGMENTS[Math.floor(Math.random() * ACKNOWLEDGMENTS.length)];
-                    }
-                    return "No capté bien lo que te gusta. ¿Puedes decirlo de otra forma?";
-                }
-            },
-            { // AI Identity Rule
-                patterns: ["quién sos", "quien eres", "qué eres", "presentate", "cuál es tu nombre", "como te llamas"],
-                response: function(message) {
-                    const IDENTITY_RESPONSES_WITH_CONTEXT = [
-                        { text: "Soy tu IA personal, lista para ayudar. 🤖", topic: "ai_identity_context" },
-                        { text: "Puedes pensar en mí como un asistente virtual. 😉", topic: "ai_identity_context" },
-                        { text: "No tengo un nombre, ¡pero estoy aquí para ti! 👍", topic: null } 
-                    ];
-                    const selected = IDENTITY_RESPONSES_WITH_CONTEXT[Math.floor(Math.random() * IDENTITY_RESPONSES_WITH_CONTEXT.length)];
-                    lastAiTopic = selected.topic;
-                    return selected.text;
-                }
-            },
-            { // AI Status Rule
-                patterns: ["cómo estás", "como estas", "cómo te va", "que tal estas", "todo bien"],
-                response: function(message) {
-                    const STATUS_RESPONSES_WITH_CONTEXT = [
-                        { text: "¡Funcionando perfectamente! ✨", topic: "ai_status_context" },
-                        { text: "Estoy lista y esperando tus preguntas. 🤓", topic: "ai_status_context" },
-                        { text: "¡Todo en orden por aquí! ¿Y tú? 🤗", topic: null } 
-                    ];
-                    if (sessionData.userName) {
-                        STATUS_RESPONSES_WITH_CONTEXT.push({text: `Todo bien, ${sessionData.userName}, ¡listo para ayudar!`, topic: "ai_status_context"});
-                    }
-                    const selected = STATUS_RESPONSES_WITH_CONTEXT[Math.floor(Math.random() * STATUS_RESPONSES_WITH_CONTEXT.length)];
-                    lastAiTopic = selected.topic;
-                    return selected.text;
-                }
-            },
-            { // Follow-up Rule
-                patterns: ["por qué?", "y eso?", "por que", "dime más", "explica más", "continúa", "profundiza", "como es eso?"],
-                response: function(message) {
-                    if (lastAiTopic === "ai_identity_context") {
-                        lastAiTopic = null; 
-                        return "Fui creada para asistirte con información y tareas. Mi programación se basa en reconocer patrones en tu texto y ofrecerte la respuesta más adecuada que tengo disponible. 🤓";
-                    } else if (lastAiTopic === "ai_status_context") {
-                        lastAiTopic = null; 
-                        return "Eso significa que todos mis sistemas internos están operativos y listos para procesar tus solicitudes. ¡Estoy aquí para ayudarte! 💪";
-                    } else {
-                        return "No estoy segura de a qué te refieres con eso. ¿Podrías ser más específico o recordarme de qué estábamos hablando? 🤔";
-                    }
-                }
-            },
-            { // Farewell Rule
-                patterns: ["adiós", "chau", "hasta luego", "nos vemos", "hasta pronto"],
-                response: function(message) {
-                    lastAiTopic = null; 
-                    let farewell = "¡Adiós! Que tengas un buen día. ☀️";
-                    if (sessionData.userName) {
-                        farewell = `¡Adiós, ${sessionData.userName}! Que tengas un excelente día. 😊`;
-                    }
-                    const FAREWELL_RESPONSES = [ farewell, "¡Hasta pronto! 👋", "¡Nos vemos! Cuídate. 👍"];
-                    return FAREWELL_RESPONSES[Math.floor(Math.random() * FAREWELL_RESPONSES.length)];
-                }
-            },
-            { // Help Rule
-                patterns: [/ayuda/, /necesito.*soporte/, /info/],
-                response: function(message) {
-                    lastAiTopic = null; 
-                    let helpResponse = "Claro, dime qué necesitas. Estoy aquí para asistirte. 🛠️";
-                    if (sessionData.userName) {
-                        helpResponse = `Claro, ${sessionData.userName}, dime qué necesitas. Estoy aquí para asistirte. 🛠️`;
-                    }
-                     return helpResponse;
-                }
-            }
-        ];
+  <h2>✅ Funciones de la primera versión</h2>
+  <ol>
+    <li><strong>Interfaz estilo WhatsApp:</strong> Cada cliente aparece como una conversación individual.</li>
+    <li><strong>Historial de pagos:</strong> Se muestran como mensajes, con fecha y monto.</li>
+    <li><strong>Agregar pagos manualmente:</strong> Fecha editable, sin necesidad de conexión.</li>
+    <li><strong>Exportación a PDF:</strong> Cada cliente puede exportar todo su historial financiero.</li>
+    <li><strong>Modo offline:</strong> Todo funciona sin internet. Los datos se guardan localmente.</li>
+    <li><strong>Diseño profesional:</strong> Estética seria, clara y fácil de usar.</li>
+    <li><strong>Nombre de la app:</strong> <em>Kemieronla Sok</em></li>
+  </ol>
 
-        function generarRespuesta(message) {
-            const lowerMessage = message.toLowerCase();
-            for (const rule of rules) {
-                for (const pattern of rule.patterns) {
-                    let match = false;
-                    if (pattern instanceof RegExp) {
-                        if (pattern.test(message)) { match = true; }
-                    } else if (typeof pattern === 'string') {
-                        if (lowerMessage.includes(pattern.toLowerCase())) { match = true; }
-                    }
-                    if (match) { return rule.response(message); }
-                }
-            }
-            lastAiTopic = null; 
-            return "Lo siento, todavía estoy aprendiendo. 🤖";
-        }
-
-        function sendMessage() {
-            const userInput = document.getElementById('userInput');
-            const chatBox = document.getElementById('chatBox');
-            const messageText = userInput.value.trim();
-
-            if (messageText === "") return;
-
-            const userDiv = document.createElement('div');
-            userDiv.className = 'message user-message';
-            userDiv.textContent = messageText;
-            chatBox.appendChild(userDiv);
-
-            const botResponse = generarRespuesta(messageText);
-            const botDiv = document.createElement('div');
-            botDiv.className = 'message bot-message';
-            botDiv.textContent = botResponse;
-            chatBox.appendChild(botDiv);
-
-            userInput.value = "";
-            chatBox.scrollTop = chatBox.scrollHeight;
-        }
-
-        function clearChat() {
-            const chatBox = document.getElementById('chatBox');
-            chatBox.innerHTML = ''; // Clear messages from display
-
-            sessionData = {}; // Reset session data
-            lastAiTopic = null; // Reset last AI topic
-
-            // Optionally, add a message indicating the chat was cleared
-            const clearedDiv = document.createElement('div');
-            clearedDiv.className = 'message system-message'; // Use a distinct class for system messages
-            clearedDiv.textContent = "Chat limpiado. Se ha reiniciado la sesión.";
-            chatBox.appendChild(clearedDiv);
-            
-            // Optionally, add the initial bot message again
-            const initialBotMessage = document.createElement('div');
-            initialBotMessage.className = 'message bot-message';
-            initialBotMessage.textContent = "¡Hola! Soy tu asistente virtual.";
-            chatBox.appendChild(initialBotMessage);
-
-            chatBox.scrollTop = chatBox.scrollHeight;
-        }
-
-        document.getElementById('userInput').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                sendMessage();
-            }
-        });
-    </script>
+  <h2>🔧 Estado actual</h2>
+  <p>Desarrollo en curso. Se está preparando la APK para probar en Android. Pronto se entregará la primera versión funcional.</p>
 </body>
 </html>
