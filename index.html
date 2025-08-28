@@ -1,114 +1,187 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Live Player</title>
-  <!-- hls.js: HLS en navegadores que no soportan .m3u8 nativo -->
-  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
-  <style>
-    html,body{margin:0;height:100%;background:#000}
-    #wrap{position:fixed;inset:0;background:#000}
-    video{width:100%;height:100%;display:block;background:#000;outline:none}
-    /* Overlay solo si el navegador bloquea sonido/FS; sin botones */
-    #overlay{
-      position:fixed;inset:0;display:none;place-items:center;
-      background:rgba(0,0,0,.88);color:#fff;text-align:center;
-      font-family:system-ui,-apple-system,Segoe UI,Arial;padding:24px
-    }
-    #overlay.show{display:grid}
-  </style>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Live Player</title>
+<script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.8"></script>
+<style>
+  html,body{margin:0;height:100%;background:#000}
+  #wrap{position:fixed;inset:0;background:#000}
+  video{width:100%;height:100%;display:block;background:#000;outline:none}
+  /* Overlay sólo si hace falta gesto; sin botones visibles */
+  #overlay{
+    position:fixed;inset:0;display:none;place-items:center;
+    background:rgba(0,0,0,.88);color:#fff;text-align:center;
+    font-family:system-ui,-apple-system,Segoe UI,Arial;padding:24px
+  }
+  #overlay.show{display:grid}
+  .hint{opacity:.9;font-size:1rem;max-width:520px}
+</style>
 </head>
 <body>
-  <div id="wrap"><video id="v" autoplay playsinline></video></div>
-  <div id="overlay"><div>⬆️ Doble-tap/doble-click para activar <b>sonido</b> y <b>pantalla completa</b>.</div></div>
+<div id="wrap"><video id="v" autoplay playsinline></video></div>
+<div id="overlay"><div class="hint">Doble tap/click para activar <b>sonido</b> y <b>pantalla completa</b>.</div></div>
 
-  <script>
-    // Stream por defecto (Crónica 720p). Cambiá acá o usa ?src=URL
-    const DEFAULT_SRC = "https://g3.vxral-hor.transport.edge-access.net/a09/ngrp:cronicatv_video1-100044_all/cronicatv_video1-100044_720p.m3u8";
-    const params = new URL(location.href).searchParams;
-    const SRC = params.get("src") || DEFAULT_SRC;
+<script>
+(async () => {
+  // ====== CONFIG ======
+  const DEFAULT_SRC =
+    "https://g3.vxral-hor.transport.edge-access.net/a09/ngrp:cronicatv_video1-100044_all/cronicatv_video1-100044_720p.m3u8";
+  const params = new URL(location.href).searchParams;
+  const SRC = params.get("src") || DEFAULT_SRC;
+  const INITIAL_MUTED = true; // autoplay fiable en móviles; luego intentamos desmutear
+  const AUTO_FS_ON_START = true;
+  const VOLUME_KEY = "liveplayer.volume";
+  const CONSENT_KEY = "liveplayer.soundConsent"; // si alguna vez diste toque, en visitas futuras intenta sonido auto
 
-    const video = document.getElementById("v");
-    const overlay = document.getElementById("overlay");
+  const video = document.getElementById("v");
+  const overlay = document.getElementById("overlay");
 
-    // 1) Intento inicial: autoplay en mute (lo exige el navegador)
-    video.muted = true;
-
-    // Pantalla completa
-    async function requestFS(){
-      const el = document.documentElement;
-      try{
-        if(!document.fullscreenElement){
-          if (el.requestFullscreen) await el.requestFullscreen();
-          else if (el.webkitRequestFullscreen) await el.webkitRequestFullscreen();
-          else if (el.msRequestFullscreen) await el.msRequestFullscreen();
-        }
-      }catch(e){}
-    }
-
-    // Reproducir con sonido
-    async function playWithSound(){
-      try{ video.muted = false; video.volume = 1.0; }catch(e){}
-      try{ await video.play(); }catch(e){}
-    }
-
-    // Ocultar overlay si ya está reproduciendo
-    function autoHideOverlay(){
-      const hide = ()=> overlay.classList.remove("show");
-      video.addEventListener("playing", hide);
-      video.addEventListener("volumechange", ()=>{ if(!video.muted) hide(); });
-    }
-
-    // Cargar stream
-    function loadStream(url){
-      autoHideOverlay();
-
-      if (window.Hls && Hls.isSupported()) {
-        const hls = new Hls({lowLatencyMode:true});
-        hls.loadSource(url);
-        hls.attachMedia(video);
-        hls.on(Hls.Events.MANIFEST_PARSED, async () => {
-          try { await video.play(); } catch(e){}
-          await requestFS();
-          // Intento subir a sonido si el navegador ya lo permite en tu dominio (MEI)
-          try { await playWithSound(); } catch(e) { overlay.classList.add("show"); }
-        });
-      } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
-        // Safari / iOS (HLS nativo)
-        video.src = url;
-        video.addEventListener("loadedmetadata", async ()=>{
-          try { await video.play(); } catch(e){}
-          await requestFS();
-          try { await playWithSound(); } catch(e) { overlay.classList.add("show"); }
-        });
-      } else {
-        // Si el navegador no soporta nada, mostramos overlay para gesto
-        overlay.classList.add("show");
+  // ====== Utils ======
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  function showOverlay(show=true){ overlay.classList.toggle("show", !!show); }
+  async function requestFS(){
+    const el = document.documentElement;
+    try{
+      if(!document.fullscreenElement){
+        if(el.requestFullscreen) await el.requestFullscreen();
+        else if(el.webkitRequestFullscreen) await el.webkitRequestFullscreen();
+        else if(el.msRequestFullscreen) await el.msRequestFullscreen();
       }
-    }
+    }catch(e){}
+  }
+  async function playTry(){
+    try{ await video.play(); return true; }catch(e){ return false; }
+  }
+  function setVolumeFromStore(){
+    try {
+      const v = parseFloat(localStorage.getItem(VOLUME_KEY) || "1");
+      if(!Number.isNaN(v)) { video.volume = Math.max(0, Math.min(1, v)); }
+    } catch(e){}
+  }
+  function saveVolume(){ try{ localStorage.setItem(VOLUME_KEY, String(video.volume)); }catch(e){} }
+  function hasConsent(){ try{ return localStorage.getItem(CONSENT_KEY)==="1"; }catch(e){ return false; } }
+  function setConsent(){ try{ localStorage.setItem(CONSENT_KEY,"1"); }catch(e){} }
 
-    // 2) Gesto del usuario: doble-tap/doble-click → sonido + fullscreen
-    let lastTap = 0;
-    function isDoubleTap(){
-      const now = Date.now();
-      const isDT = (now - lastTap) < 400; // 400ms ventana
-      lastTap = now;
-      return isDT;
-    }
-    document.addEventListener("pointerdown", async ()=>{
-      if (isDoubleTap()){
-        await requestFS();
-        await playWithSound();
-        overlay.classList.remove("show");
+  // Wake Lock (mantener pantalla viva si el navegador lo permite)
+  let wakeLock;
+  async function requestWakeLock(){
+    try{ if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen'); }catch(e){}
+  }
+
+  // Media Session (para que el SO trate esto como media activa)
+  if ('mediaSession' in navigator) {
+    navigator.mediaSession.playbackState = 'playing';
+    navigator.mediaSession.setActionHandler('play', ()=>video.play());
+    navigator.mediaSession.setActionHandler('pause', ()=>video.pause());
+  }
+
+  // ====== Carga stream ======
+  video.playsInline = true;
+  video.muted = INITIAL_MUTED;
+  setVolumeFromStore();
+
+  function attachHLSEvents(hls){
+    hls.on(Hls.Events.ERROR, async (_, data) => {
+      if (data.fatal) {
+        switch (data.type) {
+          case Hls.ErrorTypes.NETWORK_ERROR:
+            try { hls.startLoad(); } catch(e){}
+            break;
+          case Hls.ErrorTypes.MEDIA_ERROR:
+            try { hls.recoverMediaError(); } catch(e){}
+            break;
+          default:
+            // Último recurso: recargar la página
+            location.reload();
+        }
       }
     });
+  }
 
-    // Arranque
-    loadStream(SRC);
+  async function loadStream(url){
+    if (window.Hls && Hls.isSupported()) {
+      const hls = new Hls({lowLatencyMode:true, backBufferLength: 60});
+      hls.loadSource(url);
+      hls.attachMedia(video);
+      attachHLSEvents(hls);
+      hls.on(Hls.Events.MANIFEST_PARSED, async () => {
+        await playTry();
+        if (AUTO_FS_ON_START) await requestFS();
+        // Si ya hubo consentimiento antes, intentamos sonido auto
+        if (hasConsent()) {
+          try { video.muted = false; } catch(e){}
+          await playTry();
+        } else {
+          // si el navegador bloquea audio, mostramos overlay sutil
+          showOverlay(true);
+        }
+      });
+    } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
+      video.src = url; // iOS/Safari
+      video.addEventListener("loadedmetadata", async () => {
+        await playTry();
+        if (AUTO_FS_ON_START) await requestFS();
+        if (hasConsent()) { try{ video.muted=false; }catch(e){} await playTry(); }
+        else showOverlay(true);
+      }, { once:true });
+    } else {
+      // Sin soporte: dejamos overlay y que el toque dispare fallback
+      showOverlay(true);
+    }
+  }
 
-    // Sugerencia: usar siempre este mismo dominio (GitHub Pages).
-    // Con el uso, Chrome puede habilitar autoplay con sonido (MEI).
-  </script>
+  // ====== Gestos del usuario ======
+  // Doble tap / doble click → sonido + fullscreen + play
+  let lastTap = 0;
+  async function onUserGesture(forceFS=false){
+    // Guardar consentimiento para visitas futuras (intento de audio auto)
+    setConsent();
+    try{ video.muted = false; }catch(e){}
+    if (forceFS) await requestFS();
+    await playTry();
+    showOverlay(false);
+    saveVolume();
+  }
+  function isDoubleTap(){
+    const now = Date.now();
+    const dt = (now - lastTap) < 400;
+    lastTap = now;
+    return dt;
+  }
+  document.addEventListener("pointerdown", async ()=>{
+    if (isDoubleTap() || overlay.classList.contains("show")) {
+      await onUserGesture(true);
+    }
+  });
+
+  // Si se pierde reproducción o foco, reintentar
+  document.addEventListener("visibilitychange", async ()=>{
+    if (!document.hidden) {
+      if (video.paused) await playTry();
+      if (hasConsent() && video.muted) { try{ video.muted=false; }catch(e){} await playTry(); }
+    }
+  });
+
+  // Guardar volumen cuando cambie
+  video.addEventListener("volumechange", saveVolume);
+
+  // Re-pedir FS si el usuario lo sale
+  document.addEventListener("fullscreenchange", async ()=>{
+    if (!document.fullscreenElement && !overlay.classList.contains("show") && AUTO_FS_ON_START) {
+      // no forzamos inmediatamente; esperamos 300ms por UX
+      await sleep(300);
+      await requestFS();
+    }
+  });
+
+  // Mantener pantalla
+  requestWakeLock();
+
+  // ====== Arranque ======
+  loadStream(SRC);
+})();
+</script>
 </body>
 </html>
