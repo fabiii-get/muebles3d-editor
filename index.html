@@ -1,187 +1,246 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="es">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Live Player</title>
-<script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.8"></script>
-<style>
-  html,body{margin:0;height:100%;background:#000}
-  #wrap{position:fixed;inset:0;background:#000}
-  video{width:100%;height:100%;display:block;background:#000;outline:none}
-  /* Overlay sólo si hace falta gesto; sin botones visibles */
-  #overlay{
-    position:fixed;inset:0;display:none;place-items:center;
-    background:rgba(0,0,0,.88);color:#fff;text-align:center;
-    font-family:system-ui,-apple-system,Segoe UI,Arial;padding:24px
-  }
-  #overlay.show{display:grid}
-  .hint{opacity:.9;font-size:1rem;max-width:520px}
-</style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Mueble 3D 3000×620×870 mm (sin tapa)</title>
+  <style>
+    html,body{height:100%;margin:0;background:#0b0f14;color:#e6e6e6;font-family:system-ui,Segoe UI,Roboto,Ubuntu,Arial}
+    #app{display:grid;grid-template-columns:1fr 320px;grid-template-rows:100vh}
+    #panel{
+      padding:18px;border-left:1px solid #1d2733;background:#121821;
+      display:flex;flex-direction:column;gap:14px
+    }
+    .card{background:#0f141c;border:1px solid #1d2733;border-radius:14px;padding:14px}
+    .row{display:flex;align-items:center;gap:10px}
+    .row label{flex:1 1 auto;font-size:14px}
+    input[type="range"]{width:100%}
+    .tag{display:inline-block;background:#1b2532;border:1px solid #2a3a4d;color:#b9d2ff;
+      padding:2px 8px;border-radius:999px;font-size:12px}
+    button{background:#1e2a39;border:1px solid #2f4258;color:#e6e6e6;padding:10px 12px;border-radius:10px;cursor:pointer}
+    button:hover{background:#253449}
+    canvas{display:block}
+    @media (max-width: 980px){
+      #app{grid-template-columns:1fr;grid-template-rows:auto auto}
+      #viewer{height:60vh}
+    }
+  </style>
 </head>
 <body>
-<div id="wrap"><video id="v" autoplay playsinline></video></div>
-<div id="overlay"><div class="hint">Doble tap/click para activar <b>sonido</b> y <b>pantalla completa</b>.</div></div>
+<div id="app">
+  <div id="viewer"></div>
+  <aside id="panel">
+    <div class="card">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+        <div>
+          <div style="font-weight:700">Mueble 3D</div>
+          <div style="opacity:.8;font-size:13px">3000 × 620 × 870 mm · sin tapa</div>
+        </div>
+        <span class="tag">Three.js</span>
+      </div>
+    </div>
 
-<script>
-(async () => {
-  // ====== CONFIG ======
-  const DEFAULT_SRC =
-    "https://g3.vxral-hor.transport.edge-access.net/a09/ngrp:cronicatv_video1-100044_all/cronicatv_video1-100044_720p.m3u8";
-  const params = new URL(location.href).searchParams;
-  const SRC = params.get("src") || DEFAULT_SRC;
-  const INITIAL_MUTED = true; // autoplay fiable en móviles; luego intentamos desmutear
-  const AUTO_FS_ON_START = true;
-  const VOLUME_KEY = "liveplayer.volume";
-  const CONSENT_KEY = "liveplayer.soundConsent"; // si alguna vez diste toque, en visitas futuras intenta sonido auto
+    <div class="card">
+      <div class="row">
+        <label>Cajón izq. (2º) apertura</label>
+        <output id="outL">0</output>
+      </div>
+      <input id="rngL" type="range" min="0" max="300" step="1" value="180" />
+      <div class="row">
+        <label>Cajón der. superior apertura</label>
+        <output id="outR">0</output>
+      </div>
+      <input id="rngR" type="range" min="0" max="300" step="1" value="200" />
+      <div class="row">
+        <label>Puerta central izquierda (°)</label>
+        <output id="outDoor">0</output>
+      </div>
+      <input id="rngDoor" type="range" min="0" max="110" step="1" value="70" />
+    </div>
 
-  const video = document.getElementById("v");
-  const overlay = document.getElementById("overlay");
+    <div class="card">
+      <div class="row" style="justify-content:space-between">
+        <button id="reset">Recentrar cámara</button>
+        <button id="toggleGrid">Mostrar/ocultar grilla</button>
+      </div>
+    </div>
 
-  // ====== Utils ======
-  const sleep = ms => new Promise(r => setTimeout(r, ms));
-  function showOverlay(show=true){ overlay.classList.toggle("show", !!show); }
-  async function requestFS(){
-    const el = document.documentElement;
-    try{
-      if(!document.fullscreenElement){
-        if(el.requestFullscreen) await el.requestFullscreen();
-        else if(el.webkitRequestFullscreen) await el.webkitRequestFullscreen();
-        else if(el.msRequestFullscreen) await el.msRequestFullscreen();
-      }
-    }catch(e){}
+    <div class="card" style="font-size:13px;line-height:1.4">
+      <div style="font-weight:700;margin-bottom:6px">Notas</div>
+      <ul style="margin:0 0 0 16px;padding:0">
+        <li>Unidades en milímetros.</li>
+        <li>El cuerpo está sin tapa para ver el interior.</li>
+        <li>Pivote de la puerta en el borde del módulo central izquierdo.</li>
+      </ul>
+    </div>
+  </aside>
+</div>
+
+<script type="module">
+import * as THREE from 'https://unpkg.com/three@0.160.0/build/three.module.js';
+import { OrbitControls } from 'https://unpkg.com/three@0.160.0/examples/jsm/controls/OrbitControls.js';
+
+const W = 3000, D = 620, H = 870;   // mm
+const T = 18;                       // espesor placa
+
+// Módulos
+const WL = 800, WC = 1400, WR = 800; // suman 3000
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0b0f14);
+
+// Cámara
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+document.getElementById('viewer').appendChild(renderer.domElement);
+const camera = new THREE.PerspectiveCamera(45, 1, 1, 15000);
+camera.position.set(W*0.7, -D*2.1, H*1.0);
+
+// Controles
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.target.set(W/2, 0, H/2);
+
+// Luces
+const hemi = new THREE.HemisphereLight(0xffffff, 0x17202a, 0.9);
+scene.add(hemi);
+const dir = new THREE.DirectionalLight(0xffffff, 0.8);
+dir.position.set(2000,-1200,1800);
+dir.castShadow = true;
+scene.add(dir);
+
+// Materiales
+const matCuerpo   = new THREE.MeshStandardMaterial({ color: 0xd9d9d9, metalness: 0, roughness: 0.9 });
+const matDivision = new THREE.MeshStandardMaterial({ color: 0xb3b3b3, metalness: 0, roughness: 0.9 });
+const matEstante  = new THREE.MeshStandardMaterial({ color: 0xc9c9c9, metalness: 0, roughness: 0.9 });
+const matFrente   = new THREE.MeshStandardMaterial({ color: 0x4d80bd, metalness: 0, roughness: 0.6 });
+const matCajon    = new THREE.MeshStandardMaterial({ color: 0x87cefa, metalness: 0, roughness: 0.6 });
+const matPuerta   = new THREE.MeshStandardMaterial({ color: 0x228b55, metalness: 0, roughness: 0.6 });
+const matPuertaOp = new THREE.MeshStandardMaterial({ color: 0x90ee90, metalness: 0, roughness: 0.6, opacity: 0.9, transparent: true });
+
+const root = new THREE.Group();
+scene.add(root);
+
+// Helper para box
+function addBox(x,y,z, dx,dy,dz, mat){
+  const g = new THREE.BoxGeometry(dx, dy, dz);
+  const m = new THREE.Mesh(g, mat);
+  m.position.set(x+dx/2, y+dy/2, z+dz/2);
+  root.add(m);
+  return m;
+}
+
+// Carcasa (sin tapa)
+addBox(0,     0, 0, W, T, T, matCuerpo);         // piso
+addBox(0, D-T, 0, W, T, H, matCuerpo);           // fondo
+addBox(0,     0, 0, T, D, H, matCuerpo);         // lateral izq
+addBox(W-T,   0, 0, T, D, H, matCuerpo);         // lateral der
+
+// Divisiones
+addBox(WL - T/2, 0, 0, T, D, H, matDivision);
+addBox(WL + WC - T/2, 0, 0, T, D, H, matDivision);
+
+// Estante central
+addBox(WL, 0, H/2 - T/2, WC, D, T, matEstante);
+
+// Cajones módulo izquierdo (frentes + 1 cajón abierto)
+const zStep = H/4;
+let cajonIzqAbierto = new THREE.Group();
+root.add(cajonIzqAbierto);
+
+for(let i=0;i<4;i++){
+  const z0 = i*zStep + 2, h = zStep - 4;
+  if(i === 1){
+    // Caja del cajón "abierta" (se moverá en -Y)
+    const caja = addBox(0, -200, z0, WL, 200, h, matCajon);
+    const frente = addBox(0, -T, z0, WL, T, h, matFrente);
+    cajonIzqAbierto.add(caja); cajonIzqAbierto.add(frente);
+  }else{
+    addBox(0, 0, z0, WL, T, h, matFrente); // frente cerrado
   }
-  async function playTry(){
-    try{ await video.play(); return true; }catch(e){ return false; }
-  }
-  function setVolumeFromStore(){
-    try {
-      const v = parseFloat(localStorage.getItem(VOLUME_KEY) || "1");
-      if(!Number.isNaN(v)) { video.volume = Math.max(0, Math.min(1, v)); }
-    } catch(e){}
-  }
-  function saveVolume(){ try{ localStorage.setItem(VOLUME_KEY, String(video.volume)); }catch(e){} }
-  function hasConsent(){ try{ return localStorage.getItem(CONSENT_KEY)==="1"; }catch(e){ return false; } }
-  function setConsent(){ try{ localStorage.setItem(CONSENT_KEY,"1"); }catch(e){} }
+}
 
-  // Wake Lock (mantener pantalla viva si el navegador lo permite)
-  let wakeLock;
-  async function requestWakeLock(){
-    try{ if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen'); }catch(e){}
-  }
+// Puertas centro: derecha cerrada; izquierda abre con pivote
+addBox(WL + WC/2, 0, 2, WC/2, T, H-4, matPuerta); // derecha cerrada
 
-  // Media Session (para que el SO trate esto como media activa)
-  if ('mediaSession' in navigator) {
-    navigator.mediaSession.playbackState = 'playing';
-    navigator.mediaSession.setActionHandler('play', ()=>video.play());
-    navigator.mediaSession.setActionHandler('pause', ()=>video.pause());
-  }
+// Puerta izquierda con pivote
+const puertaPivot = new THREE.Group();
+puertaPivot.position.set(WL, 0, 0);
+root.add(puertaPivot);
+const puertaIzq = new THREE.Mesh(new THREE.BoxGeometry(WC/2, T, H-4), matPuertaOp);
+puertaIzq.position.set(WC/4, T/2, (H-4)/2);
+puertaPivot.add(puertaIzq);
 
-  // ====== Carga stream ======
-  video.playsInline = true;
-  video.muted = INITIAL_MUTED;
-  setVolumeFromStore();
+// Módulo derecho: cajón sup abierto + puerta inf cerrada
+const cajonDer = new THREE.Group();
+root.add(cajonDer);
+const zDer = H*0.75 + 2, hDer = H*0.25 - 4;
+cajonDer.add(addBox(WL+WC, -220, zDer, WR, 220, hDer, matCajon));
+cajonDer.add(addBox(WL+WC, -T,  zDer, WR, T,   hDer, matFrente));
+addBox(WL+WC, 0, 2, WR, T, H*0.75 - 4, matPuerta); // puerta inferior cerrada
 
-  function attachHLSEvents(hls){
-    hls.on(Hls.Events.ERROR, async (_, data) => {
-      if (data.fatal) {
-        switch (data.type) {
-          case Hls.ErrorTypes.NETWORK_ERROR:
-            try { hls.startLoad(); } catch(e){}
-            break;
-          case Hls.ErrorTypes.MEDIA_ERROR:
-            try { hls.recoverMediaError(); } catch(e){}
-            break;
-          default:
-            // Último recurso: recargar la página
-            location.reload();
-        }
-      }
-    });
-  }
+// Centro de la escena
+root.position.set(0,0,0);
 
-  async function loadStream(url){
-    if (window.Hls && Hls.isSupported()) {
-      const hls = new Hls({lowLatencyMode:true, backBufferLength: 60});
-      hls.loadSource(url);
-      hls.attachMedia(video);
-      attachHLSEvents(hls);
-      hls.on(Hls.Events.MANIFEST_PARSED, async () => {
-        await playTry();
-        if (AUTO_FS_ON_START) await requestFS();
-        // Si ya hubo consentimiento antes, intentamos sonido auto
-        if (hasConsent()) {
-          try { video.muted = false; } catch(e){}
-          await playTry();
-        } else {
-          // si el navegador bloquea audio, mostramos overlay sutil
-          showOverlay(true);
-        }
-      });
-    } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
-      video.src = url; // iOS/Safari
-      video.addEventListener("loadedmetadata", async () => {
-        await playTry();
-        if (AUTO_FS_ON_START) await requestFS();
-        if (hasConsent()) { try{ video.muted=false; }catch(e){} await playTry(); }
-        else showOverlay(true);
-      }, { once:true });
-    } else {
-      // Sin soporte: dejamos overlay y que el toque dispare fallback
-      showOverlay(true);
-    }
-  }
+// Grilla (toggle)
+const grid = new THREE.GridHelper(5000, 50, 0x2a3a4d, 0x1c2734);
+grid.rotation.x = Math.PI/2; // en plano Y
+grid.position.set(W/2, 0, 0);
+grid.visible = false;
+scene.add(grid);
 
-  // ====== Gestos del usuario ======
-  // Doble tap / doble click → sonido + fullscreen + play
-  let lastTap = 0;
-  async function onUserGesture(forceFS=false){
-    // Guardar consentimiento para visitas futuras (intento de audio auto)
-    setConsent();
-    try{ video.muted = false; }catch(e){}
-    if (forceFS) await requestFS();
-    await playTry();
-    showOverlay(false);
-    saveVolume();
-  }
-  function isDoubleTap(){
-    const now = Date.now();
-    const dt = (now - lastTap) < 400;
-    lastTap = now;
-    return dt;
-  }
-  document.addEventListener("pointerdown", async ()=>{
-    if (isDoubleTap() || overlay.classList.contains("show")) {
-      await onUserGesture(true);
-    }
-  });
+// UI
+const rngL   = document.getElementById('rngL');
+const rngR   = document.getElementById('rngR');
+const rngDoor= document.getElementById('rngDoor');
+const outL   = document.getElementById('outL');
+const outR   = document.getElementById('outR');
+const outD   = document.getElementById('outDoor');
 
-  // Si se pierde reproducción o foco, reintentar
-  document.addEventListener("visibilitychange", async ()=>{
-    if (!document.hidden) {
-      if (video.paused) await playTry();
-      if (hasConsent() && video.muted) { try{ video.muted=false; }catch(e){} await playTry(); }
-    }
-  });
+function updateUI(){
+  outL.textContent = rngL.value + ' mm';
+  outR.textContent = rngR.value + ' mm';
+  outD.textContent = rngDoor.value + '°';
+}
+updateUI();
 
-  // Guardar volumen cuando cambie
-  video.addEventListener("volumechange", saveVolume);
+rngL.oninput = ()=>{ cajonIzqAbierto.children.forEach(m=>{ m.position.y = -Number(rngL.value); }); updateUI(); };
+rngR.oninput = ()=>{ cajonDer.children.forEach((m,i)=>{ m.position.y = (i===0? -Number(rngR.value) : -Number(rngR.value)); }); updateUI(); };
+rngDoor.oninput = ()=>{
+  const deg = Number(rngDoor.value);
+  puertaPivot.rotation.z = 0;               // sin rotación en Z
+  puertaPivot.rotation.y = THREE.MathUtils.degToRad(-deg); // abre hacia -Y
+  updateUI();
+};
 
-  // Re-pedir FS si el usuario lo sale
-  document.addEventListener("fullscreenchange", async ()=>{
-    if (!document.fullscreenElement && !overlay.classList.contains("show") && AUTO_FS_ON_START) {
-      // no forzamos inmediatamente; esperamos 300ms por UX
-      await sleep(300);
-      await requestFS();
-    }
-  });
+document.getElementById('reset').onclick = ()=>{
+  camera.position.set(W*0.7, -D*2.1, H*1.0);
+  controls.target.set(W/2, 0, H/2);
+  controls.update();
+};
 
-  // Mantener pantalla
-  requestWakeLock();
+document.getElementById('toggleGrid').onclick = ()=>{ grid.visible = !grid.visible; };
 
-  // ====== Arranque ======
-  loadStream(SRC);
-})();
+// Resize
+function resize(){
+  const vw = document.getElementById('viewer');
+  const w = vw.clientWidth;
+  const h = vw.clientHeight || window.innerHeight;
+  renderer.setSize(w,h);
+  camera.aspect = w/h;
+  camera.updateProjectionMatrix();
+}
+window.addEventListener('resize', resize);
+resize();
+
+// Animación
+renderer.setAnimationLoop(()=>{
+  controls.update();
+  renderer.render(scene, camera);
+});
+
+// Valores iniciales
+rngL.dispatchEvent(new Event('input'));
+rngR.dispatchEvent(new Event('input'));
+rngDoor.dispatchEvent(new Event('input'));
 </script>
 </body>
 </html>
